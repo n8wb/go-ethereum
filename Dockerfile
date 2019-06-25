@@ -1,16 +1,28 @@
-# Build Geth in a stock Go builder container
-FROM golang:1.12-alpine as builder
+FROM golang:1.12.5-stretch as built
 
-RUN apk add --no-cache make gcc musl-dev linux-headers git
+ENV DEBIAN_FRONTEND noninteractive
 
-ADD . /go-ethereum
-RUN cd /go-ethereum && make geth
+RUN apt-get update &&\
+    apt-get install -y apt-utils expect git git-extras software-properties-common \
+    inetutils-tools wget ca-certificates curl build-essential libssl-dev make
+# builds out geth
+ADD . /go/src/github.com/ethereum/go-ethereum
+WORKDIR /go/src/github.com/ethereum/go-ethereum
 
-# Pull Geth into a second stage deploy alpine container
-FROM alpine:latest
+RUN make all
 
-RUN apk add --no-cache ca-certificates
-COPY --from=builder /go-ethereum/build/bin/geth /usr/local/bin/
 
-EXPOSE 8545 8546 30303 30303/udp
-ENTRYPOINT ["geth"]
+FROM ubuntu:18.04 as final
+
+COPY --from=built /go/src/github.com/ethereum/go-ethereum/build/bin /usr/local/bin
+
+RUN apt-get update && apt-get install -y iperf3 openssh-server iputils-ping vim tmux software-properties-common && apt-get clean
+
+RUN add-apt-repository ppa:ethereum/ethereum && \
+    apt-get update && \
+    apt-get install -y solc
+
+WORKDIR /
+#ENV PATH /go-ethereum/build/bin:${PATH}
+
+ENTRYPOINT ["/bin/bash"]

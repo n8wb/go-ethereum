@@ -58,6 +58,10 @@ var (
 	calcDifficultyByzantium = makeDifficultyCalculator(big.NewInt(3000000))
 )
 
+func calcDifficultyWhiteblock(_ uint64, _ *types.Header) *big.Int {
+	return big.NewInt(1)
+}
+
 // Various error messages to mark blocks invalid. These should be private to
 // prevent engine specific errors from being referenced in the remainder of the
 // codebase, inherently breaking if the engine is swapped out. Please put common
@@ -311,6 +315,8 @@ func (ethash *Ethash) CalcDifficulty(chain consensus.ChainReader, time uint64, p
 func CalcDifficulty(config *params.ChainConfig, time uint64, parent *types.Header) *big.Int {
 	next := new(big.Int).Add(parent.Number, big1)
 	switch {
+	case config.IsWhiteblock(next):
+		return calcDifficultyWhiteblock(time, parent)
 	case config.IsConstantinople(next):
 		return calcDifficultyConstantinople(time, parent)
 	case config.IsByzantium(next):
